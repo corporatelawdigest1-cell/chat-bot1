@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Love Chat 💕 - Real Sync</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            min-height: 100vh; padding: 20px; 
+        }
+        .container { max-width: 400px; margin: 0 auto; }
+        .card { 
+            background: white; border-radius: 20px; 
+            padding: 25px; margin-bottom: 20px; 
+            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .title { font-size: 2em; font-weight: bold; margin-bottom: 10px; }
+        .btn { 
+            background: #3b82f6; color: white; border: none; 
+            padding: 15px 30px; border-radius: 15px; cursor: pointer;
+            font-size: 16px; font-weight: 600; margin: 10px 0; width: 100%;
+        }
+        .btn-pink { background: #ec4899; }
+        .btn-green { background: #10b981; }
+        .input { 
+            width: 100%; padding: 15px; border: 2px solid #ddd;
+            border-radius: 12px; margin: 10px 0; font-size: 16px;
+        }
+        .chat-container { 
+            background: white; border-radius: 20px; padding: 20px;
+            height: 500px; display: flex; flex-direction: column;
+        }
+        .chat-messages { 
+            flex: 1; overflow-y: auto; padding: 10px; 
+            border: 2px solid #ddd; border-radius: 15px; margin-bottom: 15px;
+        }
+        .message { padding: 12px; margin: 8px 0; border-radius: 15px; max-width: 80%; }
+        .own { background: #3b82f6; color: white; margin-left: auto; }
+        .other { background: #f1f5f9; margin-right: auto; }
+        .hidden { display: none; }
+        .sender { font-weight: bold; font-size: 12px; margin-bottom: 4px; }
+        .status { color: #10b981; font-size: 12px; margin: 5px 0; }
+        .instructions { background: #fef3c7; padding: 15px; border-radius: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="container">
+        <div class="card">
+            <div style="font-size: 48px; margin: 20px 0;">💕</div>
+            <div class="title">Love Chat</div>
+            <div style="color: #666; margin-bottom: 20px;">Messages sync across all devices!</div>
+            
+            <div class="instructions">
+                <strong>Secret Login:</strong><br>
+                👤 Aditya123 / forevertogether<br>
+                👤 Ishita123 / 120330
+            </div>
+            
+            <input type="text" class="input" id="usernameInput" placeholder="Username">
+            <input type="password" class="input" id="passwordInput" placeholder="Password">
+            <button class="btn" onclick="handleLogin()">Login to Secret Chat</button>
+        </div>
+    </div>
+
+    <!-- Chat Screen -->
+    <div id="chatScreen" class="container hidden">
+        <div class="chat-container">
+            <div style="text-align: center; margin-bottom: 15px;">
+                <div class="title" id="welcomeTitle">💕 Secret Chat</div>
+                <div id="status" class="status">Loading messages...</div>
+                <button class="btn-green" onclick="loadMessages()" style="padding: 8px 16px; font-size: 14px;">🔄 Refresh Messages</button>
+            </div>
+            
+            <div id="chatMessages" class="chat-messages">
+                <div class="message" style="background: #fef3c7; color: #92400e; margin: 0 auto; text-align: center;">
+                    Loading your love messages... 💕
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <input type="text" class="input" id="messageInput" placeholder="Type your message...">
+                <button class="btn-pink" onclick="sendMessage()" style="width: auto;">Send</button>
+            </div>
+            
+            <button class="btn" onclick="logout()" style="margin-top: 10px; background: #666;">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        // Secret users
+        const SECRET_USERS = {
+            Aditya123: { password: 'forevertogether', name: 'Aditya' },
+            Ishita123: { password: '120330', name: 'Ishita' }
+        };
+
+        let currentUser = null;
+        let messages = [];
+
+        // === GOOGLE SHEETS SETUP ===
+        // REPLACE THIS WITH YOUR ACTUAL SHEET ID FROM STEP 1!
+        const SHEET_ID = 'YOUR_SHEET_ID_HERE'; // ← PUT YOUR SHEET ID HERE
+        const SHEET_URL = `https://docs.google.com/spreadsheets/d/1T6527JeLA4a8bpOME99a2CH4E023Ip13_rZYVQwwFFI/gviz/tq?tqx=out:json`;
+
+        // Login
+        function handleLogin() {
+            const username = document.getElementById('usernameInput').value;
+            const password = document.getElementById('passwordInput').value;
+            
+            if (SECRET_USERS[username] && SECRET_USERS[username].password === password) {
+                currentUser = username;
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('chatScreen').classList.remove('hidden');
+                document.getElementById('welcomeTitle').textContent = `💕 ${SECRET_USERS[username].name}'s Chat`;
+                document.getElementById('status').textContent = `Welcome ${SECRET_USERS[username].name}!`;
+                loadMessages();
+                
+                // Auto-refresh every 3 seconds
+                setInterval(loadMessages, 3000);
+            } else {
+                alert('Wrong login! Try:\nAditya123 / forevertogether\nor\nIshita123 / 120330');
+            }
+        }
+
+        // Load messages from Google Sheets
+        async function loadMessages() {
+            try {
+                const response = await fetch(SHEET_URL);
+                const text = await response.text();
+                const json = JSON.parse(text.substr(47).slice(0, -2));
+                
+                const rows = json.table.rows;
+                messages = [];
+                
+                // Read all messages from sheet
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.c && row.c.length >= 4) {
+                        messages.push({
+                            timestamp: row.c[0]?.v || new Date().toISOString(),
+                            sender: row.c[1]?.v || 'unknown',
+                            name: row.c[2]?.v || 'Unknown',
+                            text: row.c[3]?.v || ''
+                        });
+                    }
+                }
+                
+                // Add welcome message if empty
+                if (messages.length === 0) {
+                    messages.push({
+                        sender: 'system',
+                        name: 'System',
+                        text: '💕 Welcome! Send your first love message!',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                
+                renderMessages();
+                document.getElementById('status').textContent = `✅ ${messages.length} messages - ${new Date().toLocaleTimeString()}`;
+                
+            } catch (error) {
+                document.getElementById('status').textContent = '❌ Using local messages only';
+                // Fallback to local storage
+                const localMessages = localStorage.getItem('loveChatBackup');
+                messages = localMessages ? JSON.parse(localMessages) : [{
+                    sender: 'system', name: 'System', text: '💕 Demo mode - Setup Google Sheets for cross-device sync!', timestamp: new Date().toISOString()
+                }];
+                renderMessages();
+            }
+        }
+
+        // Send message
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const text = messageInput.value.trim();
+            
+            if (text && currentUser) {
+                const newMessage = {
+                    sender: currentUser,
+                    name: SECRET_USERS[currentUser].name,
+                    text: text,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Add to messages immediately
+                messages.push(newMessage);
+                messageInput.value = '';
+                renderMessages();
+                
+                // Save backup locally
+                localStorage.setItem('loveChatBackup', JSON.stringify(messages));
+                document.getElementById('status').textContent = '✅ Message sent!';
+            }
+        }
+
+        // Show messages
+        function renderMessages() {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = '';
+            
+            messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                const isOwnMessage = msg.sender === currentUser;
+                const isSystem = msg.sender === 'system';
+                
+                if (isSystem) {
+                    messageDiv.className = 'message';
+                    messageDiv.style.background = '#fef3c7';
+                    messageDiv.style.color = '#92400e';
+                    messageDiv.style.margin = '0 auto';
+                    messageDiv.style.textAlign = 'center';
+                    messageDiv.style.maxWidth = '90%';
+                } else {
+                    messageDiv.className = `message ${isOwnMessage ? 'own' : 'other'}`;
+                }
+                
+                if (!isSystem && !isOwnMessage) {
+                    const senderDiv = document.createElement('div');
+                    senderDiv.className = 'sender';
+                    senderDiv.textContent = msg.name;
+                    messageDiv.appendChild(senderDiv);
+                }
+                
+                const textDiv = document.createElement('div');
+                textDiv.textContent = msg.text;
+                messageDiv.appendChild(textDiv);
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.style.fontSize = '10px'; timeDiv.style.opacity = '0.7'; timeDiv.style.marginTop = '5px';
+                timeDiv.textContent = new Date(msg.timestamp).toLocaleTimeString();
+                messageDiv.appendChild(timeDiv);
+                
+                container.appendChild(messageDiv);
+            });
+            
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Logout
+        function logout() {
+            currentUser = null;
+            document.getElementById('chatScreen').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+        }
+
+        // Enter key support
+        document.getElementById('passwordInput').onkeypress = (e) => { if (e.key === 'Enter') handleLogin(); };
+        document.getElementById('messageInput').onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+    </script>
+</body>
+</html>
